@@ -1,0 +1,866 @@
+vrrpha-app/
+├── public/
+│   └── index.html
+├── src/
+│   ├── App.jsx
+│   ├── main.jsx
+│   ├── firebase.js
+│   └── pages/
+│       └── Marketplace.jsx
+├── package.json
+├── tailwind.config.js
+├── postcss.config.js
+└── index.css// VrrPha.com – Project Foundation // 📁 src/main.jsx
+
+// VrrPha.com – Complete Code Foundation (Frontend + Structure)
+
+// 📁 src/main.jsx import React from 'react'; import ReactDOM from 'react-dom/client'; import { BrowserRouter } from 'react-router-dom'; import App from './App'; import './index.css';
+
+ReactDOM.createRoot(document.getElementById('root')).render( <React.StrictMode> <BrowserRouter> <App /> </BrowserRouter> </React.StrictMode> );
+
+// 📁 src/App.jsx import { Routes, Route } from 'react-router-dom'; import Home from './pages/Home'; import Marketplace from './pages/Marketplace'; import Blog from './pages/Blog'; import Profile from './pages/Profile'; import Social from './pages/Social'; import Navbar from './components/Navbar'; import Footer from './components/Footer';
+
+export default function App() { return ( <div className="min-h-screen bg-black text-white"> <Navbar /> <Routes> <Route path="/" element={<Home />} /> <Route path="/marketplace" element={<Marketplace />} /> <Route path="/blog" element={<Blog />} /> <Route path="/profile" element={<Profile />} /> <Route path="/social" element={<Social />} /> </Routes> <Footer /> </div> ); }
+
+// 📁 src/firebase.js import { initializeApp } from 'firebase/app'; import { getAuth } from 'firebase/auth'; import { getFirestore } from 'firebase/firestore'; import { getStorage } from 'firebase/storage';
+
+const firebaseConfig = { apiKey: 'YOUR_API_KEY', authDomain: 'YOUR_PROJECT.firebaseapp.com', projectId: 'YOUR_PROJECT_ID', storageBucket: 'YOUR_PROJECT.appspot.com', messagingSenderId: 'YOUR_SENDER_ID', appId: 'YOUR_APP_ID' };
+
+const app = initializeApp(firebaseConfig); export const auth = getAuth(app); export const db = getFirestore(app); export const storage = getStorage(app);
+
+// 📁 src/index.css @tailwind base; @tailwind components; @tailwind utilities;
+
+body { @apply bg-black text-white; font-family: 'Poppins', sans-serif; }
+
+// 📁 src/components/Navbar.jsx import { Link } from 'react-router-dom';
+
+export default function Navbar() { return ( <nav className="bg-gray-900 p-4 flex justify-between items-center shadow"> <Link to="/" className="text-xl font-bold text-red-500">VRRRPHA</Link> <div className="space-x-4"> <Link to="/marketplace">Marketplace</Link> <Link to="/social">Social</Link> <Link to="/blog">Blog</Link> <Link to="/profile">Profile</Link> </div> </nav> ); }
+
+// 📁 src/components/Footer.jsx export default function Footer() { return ( <footer className="bg-gray-800 text-center py-3 mt-10"> <p className="text-sm text-gray-400">© 2025 VrrPha.com – Built for Mzansi's Car Kings</p> </footer> ); }
+
+// 📁 src/pages/Home.jsx export default function Home() { return ( <section className="p-4 text-center"> <h1 className="text-3xl font-bold text-red-500 mb-2">Affordable Car Mods for Mzansi Kings!</h1> <p className="text-gray-300 mb-6">Cheap. Stylish. Kasi approved.</p> <div className="space-x-4"> <a href="/marketplace" className="bg-red-600 text-white px-4 py-2 rounded">Shop Mods</a> <a href="https://wa.me/your_number" className="bg-green-600 text-white px-4 py-2 rounded">DM on WhatsApp</a> <a href="/social" className="bg-gray-700 text-white px-4 py-2 rounded">Explore Builds</a> </div> </section> ); }
+
+// 📁 src/pages/Profile.jsx export default function Profile() { return ( <div className="p-4 text-center"> <h1 className="text-2xl font-bold">👤 My Profile</h1> <p className="text-gray-400">See your posts, likes, followers, and listings.</p> </div> ); }
+
+// 📁 src/pages/Blog.jsx export default function Blog() { return ( <div className="p-4"> <h1 className="text-2xl font-bold mb-4">🛠️ Car Tips & Mod Guides</h1> <ul className="space-y-3"> <li>🔧 <a href="#">Top 5 Car Mods Under R500</a></li> <li>🧼 <a href="#">How to Clean Your Interior Like a Pro</a></li> <li>⚡ <a href="#">Best LED Upgrades in SA</a></li> </ul> </div> ); }
+
+// 📁 src/pages/Social.jsx export default function Social() { return ( <div className="p-4 text-center"> <h1 className="text-2xl font-bold">📱 VrrPha Social</h1> <p className="text-gray-400">Watch, like, follow and post builds. Shortform & longform content coming soon.</p> </div> ); }
+
+// 🧱 This is the full base structure to paste directly in Acode or VSCode
+
+// 📁 src/pages/Marketplace.jsx – Full Marketplace Feature Component
+
+import { useEffect, useState } from 'react'; import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, doc, arrayUnion, arrayRemove, } from 'firebase/firestore'; import { db, auth } from '../firebase'; import { Link } from 'react-router-dom';
+
+export default function Marketplace() { const [items, setItems] = useState([]); const [filtered, setFiltered] = useState([]); const [search, setSearch] = useState(''); const [category, setCategory] = useState('All'); const [myOnly, setMyOnly] = useState(false); const [commentText, setCommentText] = useState(''); const currentUser = auth.currentUser;
+
+const categories = ['All', 'LEDs', 'Interior', 'Exterior', 'Accessories', 'Car Care'];
+
+useEffect(() => { const q = query(collection(db, 'listings'), orderBy('createdAt', 'desc')); const unsub = onSnapshot(q, snap => { const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })); setItems(data); }); return () => unsub(); }, []);
+
+useEffect(() => { let result = [...items].filter(i => !i.sold); if (category !== 'All') result = result.filter(i => i.category === category); if (search.trim()) result = result.filter(i => i.title.toLowerCase().includes(search.toLowerCase())); if (myOnly && currentUser) result = result.filter(i => i.userId === currentUser.uid); setFiltered(result); }, [search, category, myOnly, items]);
+
+const toggleLike = async (id, liked) => { const ref = doc(db, 'listings', id); await updateDoc(ref, { likes: liked ? arrayRemove(currentUser.uid) : arrayUnion(currentUser.uid), }); };
+
+const markSold = async (id) => { const ref = doc(db, 'listings', id); await updateDoc(ref, { sold: true }); };
+
+return ( <div className="p-4 max-w-6xl mx-auto"> <h1 className="text-2xl font-bold mb-4">🛒 Marketplace</h1>
+
+<div className="flex flex-wrap gap-2 mb-4">
+    <input
+      type="text"
+      value={search}
+      onChange={e => setSearch(e.target.value)}
+      placeholder="Search listings..."
+      className="bg-gray-800 text-white px-3 py-1 rounded"
+    />
+    <select
+      value={category}
+      onChange={e => setCategory(e.target.value)}
+      className="bg-gray-800 text-white px-3 py-1 rounded"
+    >
+      {categories.map(c => (
+        <option key={c}>{c}</option>
+      ))}
+    </select>
+    {currentUser && (
+      <label className="flex items-center gap-1">
+        <input type="checkbox" checked={myOnly} onChange={() => setMyOnly(!myOnly)} /> My Listings
+      </label>
+    )}
+  </div>
+
+  <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
+    {filtered.map(item => {
+      const liked = item.likes?.includes(currentUser?.uid);
+      const isOwner = item.userId === currentUser?.uid;
+      return (
+        <div key={item.id} className="bg-gray-900 p-3 rounded shadow text-white">
+          <img src={item.image} alt={item.title} className="w-full h-40 object-cover rounded mb-2" />
+          <h2 className="font-bold text-lg">{item.title}</h2>
+          <p className="text-sm text-gray-300">{item.desc}</p>
+          <p className="text-red-400 font-semibold mt-1">{item.price}</p>
+
+          <div className="flex justify-between items-center mt-2">
+            <button
+              onClick={() => toggleLike(item.id, liked)}
+              className={`text-xl ${liked ? 'text-red-500' : 'text-white'}`}
+            >
+              ❤️ {item.likes?.length || 0}
+            </button>
+            <Link to={`/dm/${item.userId}`} className="bg-red-600 px-3 py-1 rounded text-white text-sm">
+              DM Seller
+            </Link>
+          </div>
+
+          {isOwner && (
+            <button
+              onClick={() => markSold(item.id)}
+              className="bg-yellow-500 mt-2 px-3 py-1 rounded w-full text-black"
+            >
+              ✅ Mark as Sold
+            </button>
+          )}
+
+          <div className="mt-2">
+            <h3 className="text-sm font-bold">💬 Comments</h3>
+            <ul className="text-xs text-gray-300 max-h-24 overflow-y-auto">
+              {(item.comments || []).map((c, i) => (
+                <li key={i}><b>{c.user}</b>: {c.text}</li>
+              ))}
+            </ul>
+            {currentUser && (
+              <form
+                onSubmit={e => {
+                  e.preventDefault();
+                  const newComment = {
+                    text: commentText,
+                    user: currentUser.displayName || 'Anon',
+                    createdAt: new Date(),
+                  };
+                  const ref = doc(db, 'listings', item.id);
+                  updateDoc(ref, {
+                    comments: arrayUnion(newComment)
+                  });
+                  setCommentText('');
+                }}
+                className="flex gap-1 mt-1"
+              >
+                <input
+                  value={commentText}
+                  onChange={e => setCommentText(e.target.value)}
+                  className="flex-1 bg-gray-800 text-white px-2 py-1 rounded"
+                  placeholder="Write a comment..."
+                />
+                <button type="submit" className="bg-red-600 text-sm px-3 rounded">Post</button>
+              </form>
+            )}
+          </div>
+        </div>
+      );
+    })}
+  </div>
+
+  {!filtered.length && <p className="text-gray-400 mt-10">No items found.</p>}
+</div>
+
+); }
+
+// 📁 src/pages/Marketplace.jsx – Full Marketplace w/ Upload Form
+
+import { useEffect, useState } from 'react'; import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, doc, arrayUnion, arrayRemove, serverTimestamp, } from 'firebase/firestore'; import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'; import { db, auth, storage } from '../firebase'; import { Link } from 'react-router-dom';
+
+export default function Marketplace() { const [items, setItems] = useState([]); const [filtered, setFiltered] = useState([]); const [search, setSearch] = useState(''); const [category, setCategory] = useState('All'); const [myOnly, setMyOnly] = useState(false); const [commentText, setCommentText] = useState(''); const [uploadData, setUploadData] = useState({ title: '', desc: '', price: '', category: 'LEDs', image: null, }); const [uploading, setUploading] = useState(false);
+
+const currentUser = auth.currentUser; const categories = ['All', 'LEDs', 'Interior', 'Exterior', 'Accessories', 'Car Care'];
+
+useEffect(() => { const q = query(collection(db, 'listings'), orderBy('createdAt', 'desc')); const unsub = onSnapshot(q, snap => { const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })); setItems(data); }); return () => unsub(); }, []);
+
+useEffect(() => { let result = [...items].filter(i => !i.sold); if (category !== 'All') result = result.filter(i => i.category === category); if (search.trim()) result = result.filter(i => i.title.toLowerCase().includes(search.toLowerCase())); if (myOnly && currentUser) result = result.filter(i => i.userId === currentUser.uid); setFiltered(result); }, [search, category, myOnly, items]);
+
+const toggleLike = async (id, liked) => { const ref = doc(db, 'listings', id); await updateDoc(ref, { likes: liked ? arrayRemove(currentUser.uid) : arrayUnion(currentUser.uid), }); };
+
+const markSold = async (id) => { const ref = doc(db, 'listings', id); await updateDoc(ref, { sold: true }); };
+
+const handleUpload = async (e) => { e.preventDefault(); if (!uploadData.image || !currentUser) return; setUploading(true);
+
+const imgRef = ref(storage, `listingImages/${Date.now()}_${uploadData.image.name}`);
+await uploadBytes(imgRef, uploadData.image);
+const imgUrl = await getDownloadURL(imgRef);
+
+await addDoc(collection(db, 'listings'), {
+  ...uploadData,
+  image: imgUrl,
+  likes: [],
+  comments: [],
+  sold: false,
+  userId: currentUser.uid,
+  createdAt: serverTimestamp()
+});
+
+setUploadData({ title: '', desc: '', price: '', category: 'LEDs', image: null });
+setUploading(false);
+
+};
+
+return ( <div className="p-4 max-w-6xl mx-auto"> <h1 className="text-2xl font-bold mb-4">🛒 Marketplace</h1>
+
+{currentUser && (
+    <form onSubmit={handleUpload} className="mb-8 bg-gray-800 p-4 rounded space-y-2">
+      <h2 className="text-lg font-bold mb-2">📤 Upload New Listing</h2>
+      <input required type="text" placeholder="Title" value={uploadData.title} onChange={e => setUploadData({ ...uploadData, title: e.target.value })} className="w-full bg-gray-900 px-3 py-1 rounded" />
+      <textarea required placeholder="Description" value={uploadData.desc} onChange={e => setUploadData({ ...uploadData, desc: e.target.value })} className="w-full bg-gray-900 px-3 py-1 rounded" />
+      <input required type="text" placeholder="Price (e.g. R350)" value={uploadData.price} onChange={e => setUploadData({ ...uploadData, price: e.target.value })} className="w-full bg-gray-900 px-3 py-1 rounded" />
+      <select value={uploadData.category} onChange={e => setUploadData({ ...uploadData, category: e.target.value })} className="bg-gray-900 px-3 py-1 rounded">
+        {categories.filter(c => c !== 'All').map(c => <option key={c}>{c}</option>)}
+      </select>
+      <input required type="file" accept="image/*" onChange={e => setUploadData({ ...uploadData, image: e.target.files[0] })} className="text-sm" />
+      <button type="submit" disabled={uploading} className="bg-red-600 px-4 py-2 rounded text-white font-semibold">{uploading ? 'Uploading...' : 'Post Listing'}</button>
+    </form>
+  )}
+
+  <div className="flex flex-wrap gap-2 mb-4">
+    <input
+      type="text"
+      value={search}
+      onChange={e => setSearch(e.target.value)}
+      placeholder="Search listings..."
+      className="bg-gray-800 text-white px-3 py-1 rounded"
+    />
+    <select
+      value={category}
+      onChange={e => setCategory(e.target.value)}
+      className="bg-gray-800 text-white px-3 py-1 rounded"
+    >
+      {categories.map(c => (
+        <option key={c}>{c}</option>
+      ))}
+    </select>
+    {currentUser && (
+      <label className="flex items-center gap-1">
+        <input type="checkbox" checked={myOnly} onChange={() => setMyOnly(!myOnly)} /> My Listings
+      </label>
+    )}
+  </div>
+
+  <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
+    {filtered.map(item => {
+      const liked = item.likes?.includes(currentUser?.uid);
+      const isOwner = item.userId === currentUser?.uid;
+      return (
+        <div key={item.id} className="bg-gray-900 p-3 rounded shadow text-white">
+          <img src={item.image} alt={item.title} className="w-full h-40 object-cover rounded mb-2" />
+          <h2 className="font-bold text-lg">{item.title}</h2>
+          <p className="text-sm text-gray-300">{item.desc}</p>
+          <p className="text-red-400 font-semibold mt-1">{item.price}</p>
+
+          <div className="flex justify-between items-center mt-2">
+            <button
+              onClick={() => toggleLike(item.id, liked)}
+              className={`text-xl ${liked ? 'text-red-500' : 'text-white'}`}
+            >
+              ❤️ {item.likes?.length || 0}
+            </button>
+            <Link to={`/dm/${item.userId}`} className="bg-red-600 px-3 py-1 rounded text-white text-sm">
+              DM Seller
+            </Link>
+          </div>
+
+          {isOwner && (
+            <button
+              onClick={() => markSold(item.id)}
+              className="bg-yellow-500 mt-2 px-3 py-1 rounded w-full text-black"
+            >
+              ✅ Mark as Sold
+            </button>
+          )}
+
+          <div className="mt-2">
+            <h3 className="text-sm font-bold">💬 Comments</h3>
+            <ul className="text-xs text-gray-300 max-h-24 overflow-y-auto">
+              {(item.comments || []).map((c, i) => (
+                <li key={i}><b>{c.user}</b>: {c.text}</li>
+              ))}
+            </ul>
+            {currentUser && (
+              <form
+                onSubmit={e => {
+                  e.preventDefault();
+                  const newComment = {
+                    text: commentText,
+                    user: currentUser.displayName || 'Anon',
+                    createdAt: new Date(),
+                  };
+                  const ref = doc(db, 'listings', item.id);
+                  updateDoc(ref, {
+                    comments: arrayUnion(newComment)
+                  });
+                  setCommentText('');
+                }}
+                className="flex gap-1 mt-1"
+              >
+                <input
+                  value={commentText}
+                  onChange={e => setCommentText(e.target.value)}
+                  className="flex-1 bg-gray-800 text-white px-2 py-1 rounded"
+                  placeholder="Write a comment..."
+                />
+                <button type="submit" className="bg-red-600 text-sm px-3 rounded">Post</button>
+              </form>
+            )}
+          </div>
+        </div>
+      );
+    })}
+  </div>
+
+  {!filtered.length && <p className="text-gray-400 mt-10">No items found.</p>}
+</div>
+
+); }
+
+// 📁 src/pages/Marketplace.jsx – Marketplace + Upload + Auth Check
+
+import { useEffect, useState } from 'react'; import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, doc, arrayUnion, arrayRemove, serverTimestamp, } from 'firebase/firestore'; import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'; import { db, auth, storage } from '../firebase'; import { Link, useNavigate } from 'react-router-dom'; import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile, signOut } from 'firebase/auth';
+
+export default function Marketplace() { const [items, setItems] = useState([]); const [filtered, setFiltered] = useState([]); const [search, setSearch] = useState(''); const [category, setCategory] = useState('All'); const [myOnly, setMyOnly] = useState(false); const [commentText, setCommentText] = useState(''); const [uploadData, setUploadData] = useState({ title: '', desc: '', price: '', category: 'LEDs', image: null }); const [uploading, setUploading] = useState(false); const [user, setUser] = useState(null); const [authMode, setAuthMode] = useState('login'); const [email, setEmail] = useState(''); const [password, setPassword] = useState(''); const [name, setName] = useState(''); const navigate = useNavigate();
+
+const categories = ['All', 'LEDs', 'Interior', 'Exterior', 'Accessories', 'Car Care'];
+
+useEffect(() => { const unsub = onAuthStateChanged(auth, (u) => setUser(u)); return unsub; }, []);
+
+useEffect(() => { const q = query(collection(db, 'listings'), orderBy('createdAt', 'desc')); const unsub = onSnapshot(q, snap => { const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })); setItems(data); }); return () => unsub(); }, []);
+
+useEffect(() => { let result = [...items].filter(i => !i.sold); if (category !== 'All') result = result.filter(i => i.category === category); if (search.trim()) result = result.filter(i => i.title.toLowerCase().includes(search.toLowerCase())); if (myOnly && user) result = result.filter(i => i.userId === user.uid); setFiltered(result); }, [search, category, myOnly, items, user]);
+
+const toggleLike = async (id, liked) => { const ref = doc(db, 'listings', id); await updateDoc(ref, { likes: liked ? arrayRemove(user.uid) : arrayUnion(user.uid), }); };
+
+const markSold = async (id) => { const ref = doc(db, 'listings', id); await updateDoc(ref, { sold: true }); };
+
+const handleUpload = async (e) => { e.preventDefault(); if (!uploadData.image || !user) return; setUploading(true); const imgRef = ref(storage, listingImages/${Date.now()}_${uploadData.image.name}); await uploadBytes(imgRef, uploadData.image); const imgUrl = await getDownloadURL(imgRef); await addDoc(collection(db, 'listings'), { ...uploadData, image: imgUrl, likes: [], comments: [], sold: false, userId: user.uid, createdAt: serverTimestamp() }); setUploadData({ title: '', desc: '', price: '', category: 'LEDs', image: null }); setUploading(false); };
+
+const handleAuth = async (e) => { e.preventDefault(); if (authMode === 'login') { await signInWithEmailAndPassword(auth, email, password); } else { const res = await createUserWithEmailAndPassword(auth, email, password); await updateProfile(res.user, { displayName: name }); } setEmail(''); setPassword(''); setName(''); };
+
+if (!user) { return ( <div className="p-6 max-w-md mx-auto bg-gray-900 text-white rounded shadow"> <h1 className="text-xl font-bold mb-2">🔐 {authMode === 'login' ? 'Login' : 'Register'}</h1> <form onSubmit={handleAuth} className="space-y-2"> {authMode === 'register' && ( <input value={name} onChange={e => setName(e.target.value)} placeholder="Display Name" className="w-full bg-gray-800 p-2 rounded" /> )} <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" className="w-full bg-gray-800 p-2 rounded" /> <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Password" className="w-full bg-gray-800 p-2 rounded" /> <button type="submit" className="bg-red-600 px-4 py-2 rounded w-full">{authMode === 'login' ? 'Login' : 'Register'}</button> </form> <p className="text-sm mt-3 text-center"> {authMode === 'login' ? 'New user?' : 'Already registered?'}{' '} <button className="underline" onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')}> Switch to {authMode === 'login' ? 'Register' : 'Login'} </button> </p> </div> ); }
+
+return ( <div className="p-4 max-w-6xl mx-auto"> <div className="flex justify-between mb-4"> <h1 className="text-2xl font-bold">🛒 Marketplace</h1> <button onClick={() => signOut(auth)} className="text-sm bg-gray-700 px-3 py-1 rounded">🚪 Logout</button> </div>
+
+<form onSubmit={handleUpload} className="mb-8 bg-gray-800 p-4 rounded space-y-2">
+    <h2 className="text-lg font-bold mb-2">📤 Upload New Listing</h2>
+    <input required type="text" placeholder="Title" value={uploadData.title} onChange={e => setUploadData({ ...uploadData, title: e.target.value })} className="w-full bg-gray-900 px-3 py-1 rounded" />
+    <textarea required placeholder="Description" value={uploadData.desc} onChange={e => setUploadData({ ...uploadData, desc: e.target.value })} className="w-full bg-gray-900 px-3 py-1 rounded" />
+    <input required type="text" placeholder="Price (e.g. R350)" value={uploadData.price} onChange={e => setUploadData({ ...uploadData, price: e.target.value })} className="w-full bg-gray-900 px-3 py-1 rounded" />
+    <select value={uploadData.category} onChange={e => setUploadData({ ...uploadData, category: e.target.value })} className="bg-gray-900 px-3 py-1 rounded">
+      {categories.filter(c => c !== 'All').map(c => <option key={c}>{c}</option>)}
+    </select>
+    <input required type="file" accept="image/*" onChange={e => setUploadData({ ...uploadData, image: e.target.files[0] })} className="text-sm" />
+    <button type="submit" disabled={uploading} className="bg-red-600 px-4 py-2 rounded text-white font-semibold">{uploading ? 'Uploading...' : 'Post Listing'}</button>
+  </form>
+
+  <div className="flex flex-wrap gap-2 mb-4">
+    <input
+      type="text"
+      value={search}
+      onChange={e => setSearch(e.target.value)}
+      placeholder="Search listings..."
+      className="bg-gray-800 text-white px-3 py-1 rounded"
+    />
+    <select
+      value={category}
+      onChange={e => setCategory(e.target.value)}
+      className="bg-gray-800 text-white px-3 py-1 rounded"
+    >
+      {categories.map(c => (
+        <option key={c}>{c}</option>
+      ))}
+    </select>
+    <label className="flex items-center gap-1">
+      <input type="checkbox" checked={myOnly} onChange={() => setMyOnly(!myOnly)} /> My Listings
+    </label>
+  </div>
+
+  <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
+    {filtered.map(item => {
+      const liked = item.likes?.includes(user?.uid);
+      const isOwner = item.userId === user?.uid;
+      return (
+        <div key={item.id} className="bg-gray-900 p-3 rounded shadow text-white">
+          <img src={item.image} alt={item.title} className="w-full h-40 object-cover rounded mb-2" />
+          <h2 className="font-bold text-lg">{item.title}</h2>
+          <p className="text-sm text-gray-300">{item.desc}</p>
+          <p className="text-red-400 font-semibold mt-1">{item.price}</p>
+
+          <div className="flex justify-between items-center mt-2">
+            <button
+              onClick={() => toggleLike(item.id, liked)}
+              className={`text-xl ${liked ? 'text-red-500' : 'text-white'}`}
+            >
+              ❤️ {item.likes?.length || 0}
+            </button>
+            <Link to={`/dm/${item.userId}`} className="bg-red-600 px-3 py-1 rounded text-white text-sm">
+              DM Seller
+            </Link>
+          </div>
+
+          {isOwner && (
+            <button
+              onClick={() => markSold(item.id)}
+              className="bg-yellow-500 mt-2 px-3 py-1 rounded w-full text-black"
+            >
+              ✅ Mark as Sold
+            </button>
+          )}
+
+          <div className="mt-2">
+            <h3 className="text-sm font-bold">💬 Comments</h3>
+            <ul className="text-xs text-gray-300 max-h-24 overflow-y-auto">
+              {(item.comments || []).map((c, i) => (
+                <li key={i}><b>{c.user}</b>: {c.text}</li>
+              ))}
+            </ul>
+            <form
+              onSubmit={e => {
+                e.preventDefault();
+                const newComment = {
+                  text: commentText,
+                  user: user.displayName || 'Anon',
+                  createdAt: new Date(),
+                };
+                const ref = doc(db, 'listings', item.id);
+                updateDoc(ref, {
+                  comments: arrayUnion(newComment)
+                });
+                setCommentText('');
+              }}
+              className="flex gap-1 mt-1"
+            >
+              <input
+                value={commentText}
+                onChange={e => setCommentText(e.target.value)}
+                className="flex-1 bg-gray-800 text-white px-2 py-1 rounded"
+                placeholder="Write a comment..."
+              />
+              <button type="submit" className="bg-red-600 text-sm px-3 rounded">Post</button>
+            </form>
+          </div>
+        </div>
+      );
+    })}
+  </div>
+
+  {!filtered.length && <p className="text-gray-400 mt-10">No items found.</p>}
+</div>
+
+); }
+
+// 📁 src/pages/Marketplace.jsx – Marketplace + Upload + Auth Check
+
+import { useEffect, useState } from 'react'; import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, doc, arrayUnion, arrayRemove, serverTimestamp, } from 'firebase/firestore'; import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'; import { db, auth, storage } from '../firebase'; import { Link, useNavigate } from 'react-router-dom'; import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile, signOut } from 'firebase/auth';
+
+export default function Marketplace() { const [items, setItems] = useState([]); const [filtered, setFiltered] = useState([]); const [search, setSearch] = useState(''); const [category, setCategory] = useState('All'); const [myOnly, setMyOnly] = useState(false); const [commentText, setCommentText] = useState(''); const [uploadData, setUploadData] = useState({ title: '', desc: '', price: '', category: 'LEDs', image: null }); const [uploading, setUploading] = useState(false); const [user, setUser] = useState(null); const [authMode, setAuthMode] = useState('login'); const [email, setEmail] = useState(''); const [password, setPassword] = useState(''); const [name, setName] = useState(''); const navigate = useNavigate();
+
+const categories = ['All', 'LEDs', 'Interior', 'Exterior', 'Accessories', 'Car Care'];
+
+useEffect(() => { const unsub = onAuthStateChanged(auth, (u) => setUser(u)); return unsub; }, []);
+
+useEffect(() => { const q = query(collection(db, 'listings'), orderBy('createdAt', 'desc')); const unsub = onSnapshot(q, snap => { const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })); setItems(data); }); return () => unsub(); }, []);
+
+useEffect(() => { let result = [...items].filter(i => !i.sold); if (category !== 'All') result = result.filter(i => i.category === category); if (search.trim()) result = result.filter(i => i.title.toLowerCase().includes(search.toLowerCase())); if (myOnly && user) result = result.filter(i => i.userId === user.uid); setFiltered(result); }, [search, category, myOnly, items, user]);
+
+const toggleLike = async (id, liked) => { const ref = doc(db, 'listings', id); await updateDoc(ref, { likes: liked ? arrayRemove(user.uid) : arrayUnion(user.uid), }); };
+
+const markSold = async (id) => { const ref = doc(db, 'listings', id); await updateDoc(ref, { sold: true }); };
+
+const handleUpload = async (e) => { e.preventDefault(); if (!uploadData.image || !user) return; setUploading(true); const imgRef = ref(storage, listingImages/${Date.now()}_${uploadData.image.name}); await uploadBytes(imgRef, uploadData.image); const imgUrl = await getDownloadURL(imgRef); await addDoc(collection(db, 'listings'), { ...uploadData, image: imgUrl, likes: [], comments: [], sold: false, userId: user.uid, createdAt: serverTimestamp() }); setUploadData({ title: '', desc: '', price: '', category: 'LEDs', image: null }); setUploading(false); };
+
+const handleAuth = async (e) => { e.preventDefault(); if (authMode === 'login') { await signInWithEmailAndPassword(auth, email, password); } else { const res = await createUserWithEmailAndPassword(auth, email, password); await updateProfile(res.user, { displayName: name }); } setEmail(''); setPassword(''); setName(''); };
+
+if (!user) { return ( <div className="p-6 max-w-md mx-auto bg-gray-900 text-white rounded shadow"> <h1 className="text-xl font-bold mb-2">🔐 {authMode === 'login' ? 'Login' : 'Register'}</h1> <form onSubmit={handleAuth} className="space-y-2"> {authMode === 'register' && ( <input value={name} onChange={e => setName(e.target.value)} placeholder="Display Name" className="w-full bg-gray-800 p-2 rounded" /> )} <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" className="w-full bg-gray-800 p-2 rounded" /> <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Password" className="w-full bg-gray-800 p-2 rounded" /> <button type="submit" className="bg-red-600 px-4 py-2 rounded w-full">{authMode === 'login' ? 'Login' : 'Register'}</button> </form> <p className="text-sm mt-3 text-center"> {authMode === 'login' ? 'New user?' : 'Already registered?'}{' '} <button className="underline" onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')}> Switch to {authMode === 'login' ? 'Register' : 'Login'} </button> </p> </div> ); }
+
+return ( <div className="p-4 max-w-6xl mx-auto"> <div className="flex justify-between mb-4"> <h1 className="text-2xl font-bold">🛒 Marketplace</h1> <button onClick={() => signOut(auth)} className="text-sm bg-gray-700 px-3 py-1 rounded">🚪 Logout</button> </div>
+
+<form onSubmit={handleUpload} className="mb-8 bg-gray-800 p-4 rounded space-y-2">
+    <h2 className="text-lg font-bold mb-2">📤 Upload New Listing</h2>
+    <input required type="text" placeholder="Title" value={uploadData.title} onChange={e => setUploadData({ ...uploadData, title: e.target.value })} className="w-full bg-gray-900 px-3 py-1 rounded" />
+    <textarea required placeholder="Description" value={uploadData.desc} onChange={e => setUploadData({ ...uploadData, desc: e.target.value })} className="w-full bg-gray-900 px-3 py-1 rounded" />
+    <input required type="text" placeholder="Price (e.g. R350)" value={uploadData.price} onChange={e => setUploadData({ ...uploadData, price: e.target.value })} className="w-full bg-gray-900 px-3 py-1 rounded" />
+    <select value={uploadData.category} onChange={e => setUploadData({ ...uploadData, category: e.target.value })} className="bg-gray-900 px-3 py-1 rounded">
+      {categories.filter(c => c !== 'All').map(c => <option key={c}>{c}</option>)}
+    </select>
+    <input required type="file" accept="image/*" onChange={e => setUploadData({ ...uploadData, image: e.target.files[0] })} className="text-sm" />
+    <button type="submit" disabled={uploading} className="bg-red-600 px-4 py-2 rounded text-white font-semibold">{uploading ? 'Uploading...' : 'Post Listing'}</button>
+  </form>
+
+  <div className="flex flex-wrap gap-2 mb-4">
+    <input
+      type="text"
+      value={search}
+      onChange={e => setSearch(e.target.value)}
+      placeholder="Search listings..."
+      className="bg-gray-800 text-white px-3 py-1 rounded"
+    />
+    <select
+      value={category}
+      onChange={e => setCategory(e.target.value)}
+      className="bg-gray-800 text-white px-3 py-1 rounded"
+    >
+      {categories.map(c => (
+        <option key={c}>{c}</option>
+      ))}
+    </select>
+    <label className="flex items-center gap-1">
+      <input type="checkbox" checked={myOnly} onChange={() => setMyOnly(!myOnly)} /> My Listings
+    </label>
+  </div>
+
+  <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
+    {filtered.map(item => {
+      const liked = item.likes?.includes(user?.uid);
+      const isOwner = item.userId === user?.uid;
+      return (
+        <div key={item.id} className="bg-gray-900 p-3 rounded shadow text-white">
+          <img src={item.image} alt={item.title} className="w-full h-40 object-cover rounded mb-2" />
+          <h2 className="font-bold text-lg">{item.title}</h2>
+          <p className="text-sm text-gray-300">{item.desc}</p>
+          <p className="text-red-400 font-semibold mt-1">{item.price}</p>
+
+          <div className="flex justify-between items-center mt-2">
+            <button
+              onClick={() => toggleLike(item.id, liked)}
+              className={`text-xl ${liked ? 'text-red-500' : 'text-white'}`}
+            >
+              ❤️ {item.likes?.length || 0}
+            </button>
+            <Link to={`/dm/${item.userId}`} className="bg-red-600 px-3 py-1 rounded text-white text-sm">
+              DM Seller
+            </Link>
+          </div>
+
+          {isOwner && (
+            <button
+              onClick={() => markSold(item.id)}
+              className="bg-yellow-500 mt-2 px-3 py-1 rounded w-full text-black"
+            >
+              ✅ Mark as Sold
+            </button>
+          )}
+
+          <div className="mt-2">
+            <h3 className="text-sm font-bold">💬 Comments</h3>
+            <ul className="text-xs text-gray-300 max-h-24 overflow-y-auto">
+              {(item.comments || []).map((c, i) => (
+                <li key={i}><b>{c.user}</b>: {c.text}</li>
+              ))}
+            </ul>
+            <form
+              onSubmit={e => {
+                e.preventDefault();
+                const newComment = {
+                  text: commentText,
+                  user: user.displayName || 'Anon',
+                  createdAt: new Date(),
+                };
+                const ref = doc(db, 'listings', item.id);
+                updateDoc(ref, {
+                  comments: arrayUnion(newComment)
+                });
+                setCommentText('');
+              }}
+              className="flex gap-1 mt-1"
+            >
+              <input
+                value={commentText}
+                onChange={e => setCommentText(e.target.value)}
+                className="flex-1 bg-gray-800 text-white px-2 py-1 rounded"
+                placeholder="Write a comment..."
+              />
+              <button type="submit" className="bg-red-600 text-sm px-3 rounded">Post</button>
+            </form>
+          </div>
+        </div>
+      );
+    })}
+  </div>
+
+  {!filtered.length && <p className="text-gray-400 mt-10">No items found.</p>}
+</div>
+
+); }
+
+// 📁 src/pages/SocialFeed.jsx – Shortform & Longform Video Feed
+
+import { useEffect, useState } from 'react'; import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, doc, arrayUnion, arrayRemove, serverTimestamp } from 'firebase/firestore'; import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'; import { db, auth, storage } from '../firebase';
+
+export default function SocialFeed() { const [videos, setVideos] = useState([]); const [uploading, setUploading] = useState(false); const [uploadData, setUploadData] = useState({ title: '', desc: '', file: null }); const [commentText, setCommentText] = useState(''); const user = auth.currentUser;
+
+useEffect(() => { const q = query(collection(db, 'videos'), orderBy('createdAt', 'desc')); return onSnapshot(q, snap => { const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })); setVideos(data); }); }, []);
+
+const handleUpload = async (e) => { e.preventDefault(); if (!uploadData.file || !user) return; setUploading(true); const fileRef = ref(storage, videoUploads/${Date.now()}_${uploadData.file.name}); await uploadBytes(fileRef, uploadData.file); const videoUrl = await getDownloadURL(fileRef);
+
+await addDoc(collection(db, 'videos'), {
+  ...uploadData,
+  video: videoUrl,
+  likes: [],
+  comments: [],
+  userId: user.uid,
+  userName: user.displayName,
+  createdAt: serverTimestamp(),
+});
+
+setUploadData({ title: '', desc: '', file: null });
+setUploading(false);
+
+};
+
+const toggleLike = async (id, liked) => { const refDoc = doc(db, 'videos', id); await updateDoc(refDoc, { likes: liked ? arrayRemove(user.uid) : arrayUnion(user.uid), }); };
+
+const postComment = async (id) => { const refDoc = doc(db, 'videos', id); const comment = { text: commentText, user: user.displayName || 'Anon', createdAt: new Date(), }; await updateDoc(refDoc, { comments: arrayUnion(comment) }); setCommentText(''); };
+
+return ( <div className="p-4 max-w-3xl mx-auto text-white"> <h1 className="text-2xl font-bold mb-4">🎬 VrrPha Social Feed</h1>
+
+{user && (
+    <form onSubmit={handleUpload} className="bg-gray-800 p-4 rounded mb-6 space-y-2">
+      <h2 className="text-lg font-bold">Upload Video</h2>
+      <input required placeholder="Title" value={uploadData.title} onChange={e => setUploadData({ ...uploadData, title: e.target.value })} className="w-full bg-gray-900 p-2 rounded" />
+      <textarea required placeholder="Description" value={uploadData.desc} onChange={e => setUploadData({ ...uploadData, desc: e.target.value })} className="w-full bg-gray-900 p-2 rounded" />
+      <input required type="file" accept="video/*" onChange={e => setUploadData({ ...uploadData, file: e.target.files[0] })} className="text-sm" />
+      <button disabled={uploading} className="bg-red-600 px-4 py-2 rounded">{uploading ? 'Uploading...' : 'Post Video'}</button>
+    </form>
+  )}
+
+  {videos.map(v => {
+    const liked = v.likes?.includes(user?.uid);
+    const isLong = v.file?.length > 300 || false;
+    return (
+      <div key={v.id} className={`bg-gray-900 p-4 rounded mb-6 shadow ${isLong ? 'border border-yellow-500' : ''}`}>
+        <video src={v.video} controls className="w-full rounded mb-2" />
+        <h2 className="font-bold text-xl">{v.title}</h2>
+        <p className="text-sm text-gray-300">{v.desc}</p>
+        <p className="text-xs text-gray-500 mt-1">by {v.userName}</p>
+
+        <div className="flex justify-between items-center mt-2">
+          <button
+            onClick={() => toggleLike(v.id, liked)}
+            className={`text-xl ${liked ? 'text-red-500' : 'text-white'}`}
+          >
+            ❤️ {v.likes?.length || 0}
+          </button>
+          <button
+            onClick={() => navigator.clipboard.writeText(window.location.href + `#/video/${v.id}`)}
+            className="text-sm underline"
+          >
+            🔗 Share
+          </button>
+        </div>
+
+        <div className="mt-2">
+          <h3 className="font-bold text-sm">💬 Comments</h3>
+          <ul className="max-h-24 overflow-y-auto text-sm text-gray-300">
+            {(v.comments || []).map((c, i) => (
+              <li key={i}><b>{c.user}:</b> {c.text}</li>
+            ))}
+          </ul>
+          {user && (
+            <div className="flex gap-1 mt-1">
+              <input
+                className="flex-1 bg-gray-800 p-1 rounded"
+                value={commentText}
+                onChange={e => setCommentText(e.target.value)}
+                placeholder="Say something..."
+              />
+              <button onClick={() => postComment(v.id)} className="bg-red-600 px-2 rounded text-sm">Post</button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  })}
+
+  {!videos.length && <p className="text-gray-500 text-center mt-10">No videos posted yet.</p>}
+</div>
+
+); }
+
+// 📁 src/pages/Profile.jsx – Full Creator Profile Dashboard
+
+import { useEffect, useState } from 'react'; import { auth, db } from '../firebase'; import { collection, query, where, getDocs, doc, updateDoc, deleteDoc, } from 'firebase/firestore';
+
+export default function Profile() { const user = auth.currentUser; const [videos, setVideos] = useState([]); const [listings, setListings] = useState([]); const [followers, setFollowers] = useState(0); // placeholder for now
+
+useEffect(() => { if (!user) return; loadUserContent(); }, [user]);
+
+const loadUserContent = async () => { const vSnap = await getDocs(query(collection(db, 'videos'), where('userId', '==', user.uid))); const lSnap = await getDocs(query(collection(db, 'listings'), where('userId', '==', user.uid))); setVideos(vSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }))); setListings(lSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }))); };
+
+const deleteVideo = async (id) => { await deleteDoc(doc(db, 'videos', id)); setVideos(videos.filter(v => v.id !== id)); };
+
+const deleteListing = async (id) => { await deleteDoc(doc(db, 'listings', id)); setListings(listings.filter(l => l.id !== id)); };
+
+if (!user) return <div className="p-6 text-center text-white">Please log in to see your profile.</div>;
+
+return ( <div className="p-6 max-w-5xl mx-auto text-white"> <h1 className="text-2xl font-bold mb-4">👤 My Profile</h1> <div className="bg-gray-800 p-4 rounded mb-6"> <p><b>Name:</b> {user.displayName || 'No name'}</p> <p><b>Email:</b> {user.email}</p> <p><b>Followers:</b> {followers} (coming soon)</p> <p><b>Videos:</b> {videos.length}</p> <p><b>Listings:</b> {listings.length}</p> </div>
+
+<h2 className="text-xl font-bold mt-6 mb-2">🎥 My Videos</h2>
+  {videos.map(v => (
+    <div key={v.id} className="bg-gray-900 p-4 mb-3 rounded">
+      <video src={v.video} controls className="w-full h-40 object-cover rounded mb-1" />
+      <h3 className="text-lg font-bold">{v.title}</h3>
+      <p className="text-sm text-gray-300">{v.desc}</p>
+      <button onClick={() => deleteVideo(v.id)} className="mt-2 bg-red-600 px-3 py-1 rounded text-white">Delete</button>
+    </div>
+  ))}
+
+  <h2 className="text-xl font-bold mt-6 mb-2">🛒 My Listings</h2>
+  {listings.map(l => (
+    <div key={l.id} className="bg-gray-900 p-4 mb-3 rounded">
+      <img src={l.image} className="w-full h-32 object-cover rounded mb-1" />
+      <h3 className="text-lg font-bold">{l.title}</h3>
+      <p className="text-sm text-gray-300">{l.desc}</p>
+      <p className="text-red-400 font-bold">{l.price}</p>
+      <button onClick={() => deleteListing(l.id)} className="mt-2 bg-red-600 px-3 py-1 rounded text-white">Delete</button>
+    </div>
+  ))}
+
+  {!videos.length && !listings.length && <p className="text-gray-500 mt-4">No uploads yet.</p>}
+</div>
+
+); }
+
+// 📁 src/pages/Profile.jsx – Profile Page + Follow System
+
+import { useEffect, useState } from 'react'; import { auth, db } from '../firebase'; import { collection, query, where, getDocs, doc, updateDoc, deleteDoc, onSnapshot, setDoc, getDoc, } from 'firebase/firestore';
+
+export default function Profile() { const user = auth.currentUser; const [videos, setVideos] = useState([]); const [listings, setListings] = useState([]); const [followers, setFollowers] = useState(0); const [following, setFollowing] = useState(0);
+
+useEffect(() => { if (!user) return; loadUserContent(); const unsub = onSnapshot(doc(db, 'users', user.uid), (snap) => { const data = snap.data(); setFollowers(data?.followers?.length || 0); setFollowing(data?.following?.length || 0); }); return unsub; }, [user]);
+
+const loadUserContent = async () => { const vSnap = await getDocs(query(collection(db, 'videos'), where('userId', '==', user.uid))); const lSnap = await getDocs(query(collection(db, 'listings'), where('userId', '==', user.uid))); setVideos(vSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }))); setListings(lSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }))); };
+
+const deleteVideo = async (id) => { await deleteDoc(doc(db, 'videos', id)); setVideos(videos.filter(v => v.id !== id)); };
+
+const deleteListing = async (id) => { await deleteDoc(doc(db, 'listings', id)); setListings(listings.filter(l => l.id !== id)); };
+
+const handleFollow = async (targetId) => { if (!user || user.uid === targetId) return; const currentUserRef = doc(db, 'users', user.uid); const targetUserRef = doc(db, 'users', targetId);
+
+const currentSnap = await getDoc(currentUserRef);
+const targetSnap = await getDoc(targetUserRef);
+
+const currentData = currentSnap.exists() ? currentSnap.data() : {};
+const targetData = targetSnap.exists() ? targetSnap.data() : {};
+
+const isFollowing = currentData.following?.includes(targetId);
+
+await setDoc(currentUserRef, {
+  ...currentData,
+  following: isFollowing
+    ? currentData.following.filter(id => id !== targetId)
+    : [...(currentData.following || []), targetId],
+}, { merge: true });
+
+await setDoc(targetUserRef, {
+  ...targetData,
+  followers: isFollowing
+    ? targetData.followers.filter(id => id !== user.uid)
+    : [...(targetData.followers || []), user.uid],
+}, { merge: true });
+
+};
+
+if (!user) return <div className="p-6 text-center text-white">Please log in to see your profile.</div>;
+
+return ( <div className="p-6 max-w-5xl mx-auto text-white"> <h1 className="text-2xl font-bold mb-4">👤 My Profile</h1> <div className="bg-gray-800 p-4 rounded mb-6"> <p><b>Name:</b> {user.displayName || 'No name'}</p> <p><b>Email:</b> {user.email}</p> <p><b>Followers:</b> {followers}</p> <p><b>Following:</b> {following}</p> <p><b>Videos:</b> {videos.length}</p> <p><b>Listings:</b> {listings.length}</p> </div>
+
+<h2 className="text-xl font-bold mt-6 mb-2">🎥 My Videos</h2>
+  {videos.map(v => (
+    <div key={v.id} className="bg-gray-900 p-4 mb-3 rounded">
+      <video src={v.video} controls className="w-full h-40 object-cover rounded mb-1" />
+      <h3 className="text-lg font-bold">{v.title}</h3>
+      <p className="text-sm text-gray-300">{v.desc}</p>
+      <button onClick={() => deleteVideo(v.id)} className="mt-2 bg-red-600 px-3 py-1 rounded text-white">Delete</button>
+    </div>
+  ))}
+
+  <h2 className="text-xl font-bold mt-6 mb-2">🛒 My Listings</h2>
+  {listings.map(l => (
+    <div key={l.id} className="bg-gray-900 p-4 mb-3 rounded">
+      <img src={l.image} className="w-full h-32 object-cover rounded mb-1" />
+      <h3 className="text-lg font-bold">{l.title}</h3>
+      <p className="text-sm text-gray-300">{l.desc}</p>
+      <p className="text-red-400 font-bold">{l.price}</p>
+      <button onClick={() => deleteListing(l.id)} className="mt-2 bg-red-600 px-3 py-1 rounded text-white">Delete</button>
+    </div>
+  ))}
+
+  {!videos.length && !listings.length && <p className="text-gray-500 mt-4">No uploads yet.</p>}
+</div>
+
+); }
+
+// 📁 src/pages/DM.jsx – Direct Messaging Between Followers
+
+import { useState, useEffect } from 'react'; import { auth, db } from '../firebase'; import { collection, query, where, onSnapshot, addDoc, serverTimestamp, orderBy, getDoc, doc, setDoc, } from 'firebase/firestore';
+
+export default function DM() { const user = auth.currentUser; const [chatUserId, setChatUserId] = useState(''); const [message, setMessage] = useState(''); const [messages, setMessages] = useState([]); const [mutual, setMutual] = useState(false); const chatId = user && chatUserId ? [user.uid, chatUserId].sort().join('_') : null;
+
+useEffect(() => { if (!user || !chatUserId) return;
+
+const checkMutualFollow = async () => {
+  const me = await getDoc(doc(db, 'users', user.uid));
+  const other = await getDoc(doc(db, 'users', chatUserId));
+  const isMutual = me.data()?.following?.includes(chatUserId) && other.data()?.following?.includes(user.uid);
+  setMutual(isMutual);
+};
+
+const unsub = onSnapshot(
+  query(collection(db, 'messages', chatId, 'chat'), orderBy('createdAt')),
+  (snap) => {
+    setMessages(snap.docs.map(doc => doc.data()));
+  }
+);
+
+checkMutualFollow();
+return () => unsub();
+
+}, [user, chatUserId]);
+
+const sendMessage = async () => { if (!message.trim() || !user || !mutual) return; const ref = collection(db, 'messages', chatId, 'chat'); await addDoc(ref, { text: message, sender: user.uid, createdAt: serverTimestamp(), }); setMessage('');
+
+// Optional: update recent chat list (once per chat pair)
+await setDoc(doc(db, 'chats', chatId), {
+  users: [user.uid, chatUserId],
+  lastMessage: message,
+  updatedAt: serverTimestamp()
+});
+
+};
+
+return ( <div className="p-6 max-w-2xl mx-auto text-white"> <h1 className="text-2xl font-bold mb-4">💬 DM Chat</h1> <input value={chatUserId} onChange={e => setChatUserId(e.target.value)} placeholder="Enter user ID to chat" className="w-full bg-gray-800 p-2 rounded mb-4" />
+
+{!mutual && chatUserId && <p className="text-red-400 mb-4">You must both follow each other to chat.</p>}
+
+  {mutual && (
+    <div className="bg-gray-900 p-4 rounded h-96 overflow-y-auto mb-3">
+      {messages.map((m, i) => (
+        <div key={i} className={`mb-2 ${m.sender === user.uid ? 'text-right' : 'text-left'}`}>
+          <div className={`inline-block px-3 py-1 rounded ${m.sender === user.uid ? 'bg-red-600' : 'bg-gray-700'}`}>
+            {m.text}
+          </div>
+        </div>
+      ))}
+    </div>
+  )}
+
+  {mutual && (
+    <div className="flex gap-2">
+      <input
+        value={message}
+        onChange={e => setMessage(e.target.value)}
+        placeholder="Type message..."
+        className="flex-1 bg-gray-800 p-2 rounded"
+      />
+      <button onClick={sendMessage} className="bg-red-600 px-4 py-2 rounded">Send</button>
+    </div>
+  )}
+</div>
+
+); }
+
